@@ -29,8 +29,10 @@ class ImportsView(BaseView):
                    'type': product['type'],
                    'parentId': product['parentId'],
                    }
-            if 'price' in product:
+            if 'price' in product and req['type'] == 'OFFER':
                 req['price'] = product['price']
+            else:
+                req['price'] = None
             yield req
 
     @classmethod
@@ -39,10 +41,11 @@ class ImportsView(BaseView):
         Генерирует данные готовые для вставки в таблицу relations.
         """
         for prod in products:
-            yield {
-                'unit_id': prod['parentId'],
-                'relative_id': prod['id'],
-            }
+            if prod['parentId']:
+                yield {
+                    'unit_id': prod['parentId'],
+                    'relative_id': prod['id'],
+                }
 
     @classmethod
     async def update_product(cls, conn, id, data):
@@ -63,6 +66,32 @@ class ImportsView(BaseView):
         )
         await conn.execute(query)
 
+    async def update_cost_for_category(self, unit_id, conn, date):
+        children_id = await conn.fetch(relations_table.select().where(relations_table.c.unit_id == unit_id))
+        print()
+
+    async def get_roots_categorys(self, conn, set_of_categorys: set):
+        result = set()
+        seen_categorys = set()
+        for _cat in set_of_categorys:
+            seen_categorys.add(_cat)
+            _cur = _cat
+            _next = await conn.fetchrow(relations_table.select().where(relations_table.c.relative_id == _cur))
+            if not _next:
+                result.add(_cur)
+            else:
+                _next = _next['unit_id']
+            while _next:
+                if _next in seen_categorys:
+                    break
+                seen_categorys.add(_next)
+                _cur = _next
+                _next = await conn.fetchrow(relations_table.select().where(relations_table.c.relative_id == _cur))
+                _next = _next['unit_id']
+            else:
+                result.add(_cur)
+        return result
+
     @docs(summary='Добавить продукты и категории',
           responses={
               200: {"description": "Success operation"},
@@ -75,11 +104,22 @@ class ImportsView(BaseView):
             products = self.request['data']['items']
             date = self.request['data']['updateDate']
             products_to_ins = []
+            categorys_to_update = set()
             for prod in products:
                 if await conn.fetchrow(products_table.select().where(products_table.c.id == prod['id'])):
                     await self.update_product(conn, prod['id'], prod)
+                    cat = await conn.fetchrow(
+                        relations_table.select().where(relations_table.c.relative_id == prod['id']))
+                    if cat:
+                        categorys_to_update.add(cat['unit_id'])
                 else:
                     products_to_ins.append(prod)
+            if len(categorys_to_update) != 0:
+                categorys_to_update = await self.get_roots_categorys(conn, categorys_to_update)
+                for cat_id in categorys_to_update:
+                    await self.update_cost_for_category(cat_id, conn, date)
+
+
             product_rows = self.make_products_table_rows(products_to_ins, date)
             relation_rows = self.make_relations_table_rows(products_to_ins)
             chunked_product_rows = chunk_list(product_rows,

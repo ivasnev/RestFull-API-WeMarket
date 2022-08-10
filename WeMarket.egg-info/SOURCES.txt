@@ -15,12 +15,9 @@ WeMarket/api/payloads.py
 WeMarket/api/schema.py
 WeMarket/api/handlers/__init__.py
 WeMarket/api/handlers/base.py
-WeMarket/api/handlers/citizen.py
-WeMarket/api/handlers/citizen_birthdays.py
-WeMarket/api/handlers/citizens.py
+WeMarket/api/handlers/delete.py
 WeMarket/api/handlers/imports.py
-WeMarket/api/handlers/query.py
-WeMarket/api/handlers/town_stat.py
+WeMarket/api/handlers/nodes.py
 WeMarket/db/__init__.py
 WeMarket/db/__main__.py
 WeMarket/db/schema.py

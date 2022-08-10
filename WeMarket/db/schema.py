@@ -1,9 +1,10 @@
 from sqlalchemy import (
-    Column, Date, Integer,
+    Column, Integer,
     MetaData, String, Table,
-    Enum as PgEnum,
+    Enum as PgEnum,DateTime,
     ForeignKey, ForeignKeyConstraint
 )
+from sqlalchemy.dialects.postgresql import UUID
 from enum import Enum, unique
 
 
@@ -28,12 +29,12 @@ metadata = MetaData(naming_convention=convention)
 products_table = Table(
     'items',
     metadata,
-    Column('id', String, primary_key=True),
+    Column('id', UUID, primary_key=True),
     Column('name', String, nullable=False),
     Column('type', PgEnum(UnitType, name='type'), nullable=False),
     Column('parentId', String, nullable=True),
     Column('price', Integer, nullable=True),
-    Column('date', Date, nullable=True),
+    Column('date', DateTime(timezone=True), nullable=True),
 
 )
 

@@ -270,15 +270,15 @@ def test_delete():
 
 def test_all():
     test_import()
-    # test_nodes()
+    test_nodes()
     # test_sales()
     # test_stats()
-    # test_delete()
+    test_delete()
 
 
 def main():
     global API_BASEURL
-    test_name = None
+    test_name = "import"
 
     for arg in sys.argv[1:]:
         if re.match(r"^https?://", arg):

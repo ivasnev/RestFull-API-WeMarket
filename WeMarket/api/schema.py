@@ -7,28 +7,28 @@
 Схемы валидации ответов *ResponseSchema используются только при тестировании,
 чтобы убедиться что обработчики возвращают данные в корректном формате.
 """
-from datetime import date
+# from datetime import date
 
 from marshmallow import Schema, ValidationError, validates, validates_schema
-from marshmallow.fields import Date, Dict, Float, Int, List, Nested, Str
+from marshmallow.fields import DateTime, UUID, Dict, Float, Int, List, Nested, Str
 from marshmallow.validate import Length, OneOf, Range
 from WeMarket.db.schema import UnitType
 
-DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%f%z'
+DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%f%zZ'
 
 
 class ShopUnit(Schema):
-    id = Str(validate=Length(min=1, max=256), required=True)
+    id = UUID(required=True)
     name = Str(validate=Length(min=1, max=256), required=True)
     type = Str(validate=OneOf([type.value for type in UnitType]), required=True)
-    parentId = Str(validate=Length(min=1, max=256), required=False)
+    parentId = UUID(allow_none=True, required=False)
     price = Int(validate=Range(min=0), strict=True, required=False)
 
 
 class ImportSchema(Schema):
     items = Nested(ShopUnit, many=True, required=True,
                    validate=Length(max=10000))
-    updateDate = Date(format=DATE_FORMAT, required=True)
+    updateDate = DateTime(required=True, timezone=True)
 
 
 class ErrorSchema(Schema):

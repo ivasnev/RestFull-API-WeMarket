@@ -43,11 +43,15 @@ class DeleteView(BaseView):
                         and_(relations_table.c.unit_id == _id,
                              relations_table.c.relative_id == row['relative_id']))
                     await conn.execute(query)
+                    query = relations_table.delete().where(
+                             relations_table.c.relative_id == _id)
+                    await conn.execute(query)
                     query = products_table.delete().where(
                         products_table.c.id == _id)
                     await conn.execute(query)
                     query = products_table.delete().where(
                         products_table.c.id == row['relative_id'])
                     await conn.execute(query)
+
 
         return Response(status=200)

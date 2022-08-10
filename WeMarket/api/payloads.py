@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import datetime
 from decimal import Decimal
 from functools import partial, singledispatch
 from typing import Any
@@ -31,8 +31,8 @@ def convert_asyncpg_record(value: Record):
     return dict(value)
 
 
-@convert.register(date)
-def convert_date(value: date):
+@convert.register(datetime)
+def convert_datetime(value: datetime):
     return value.strftime(DATE_FORMAT)
 
 
