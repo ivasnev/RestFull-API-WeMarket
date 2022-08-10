@@ -1,0 +1,22 @@
+Metadata-Version: 2.1
+Name: WeMarket
+Version: 0.0.1
+Summary: 
+Сервис с REST API для задания на второй тур школы бэкенд разработки
+
+Home-page: UNKNOWN
+Author: Vasnev Ilya
+Author-email: ivasnev2002@gmai.com
+License: MIT
+Description: UNKNOWN
+Platform: all
+Classifier: Intended Audience :: Developers
+Classifier: Natural Language :: Russian
+Classifier: Operating System :: Linux
+Classifier: Operating System :: POSIX
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Requires-Python: >=3.8
+Provides-Extra: dev

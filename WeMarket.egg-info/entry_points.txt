@@ -1,0 +1,4 @@
+[console_scripts]
+WeMarket-api = WeMarket.api.__main__:main
+WeMarket-db = WeMarket.db.__main__:main
+
