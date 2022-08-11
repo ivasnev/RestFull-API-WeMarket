@@ -48,48 +48,82 @@ class ImportsView(BaseView):
                 }
 
     @classmethod
-    async def update_product(cls, conn, id, data):
-        prod_rel_id = await conn.fetchrow(products_table.select().where(products_table.c.id == id))
-        prod_rel_id = prod_rel_id['parentId']
-        if prod_rel_id != data['parentId']:
-            query = relations_table.delete().where(
-                and_(relations_table.c.unit_id == prod_rel_id,
-                     relations_table.c.relative_id == id))
-            await conn.execute(query)
-            query = relations_table.insert().values({
-                'unit_id': data['parentId'],
-                'relative_id': data['id'],
-            })
-            await conn.execute(query)
+    async def update_product(cls, conn, _id, data):
+        prod_rel_id = await conn.fetchrow(products_table.select().where(products_table.c.id == _id))
+        if prod_rel_id:
+            prod_rel_id = prod_rel_id['parentId']
+            if prod_rel_id != data['parentId']:
+                query = relations_table.delete().where(
+                    and_(relations_table.c.unit_id == prod_rel_id,
+                         relations_table.c.relative_id == _id))
+                await conn.execute(query)
+                query = relations_table.insert().values({
+                    'unit_id': data['parentId'],
+                    'relative_id': data['id'],
+                })
+                await conn.execute(query)
         query = products_table.update().values(data).where(
-            products_table.c.id == id
+            products_table.c.id == _id
         )
         await conn.execute(query)
 
-    async def update_cost_for_category(self, unit_id, conn, date):
-        children_id = await conn.fetch(relations_table.select().where(relations_table.c.unit_id == unit_id))
-        print()
+    async def update_cost_for_category(self, unit_id, conn):
+        unit = await conn.fetchrow(products_table.select().where(products_table.c.id == unit_id))
+        if unit['type'] == 'OFFER':
+            return unit['price'], 1
+        children = await conn.fetch(relations_table.select().where(relations_table.c.unit_id == unit_id))
+        unit = dict(unit)
 
-    async def get_roots_categorys(self, conn, set_of_categorys: set):
+        # res_cost = 0
+        # for child in children:
+        #     cost = await self.update_cost_for_category(child['relative_id'], conn)
+        #     res_cost += cost
+        # res_cost = res_cost // len(children)
+        # unit['price'] = res_cost
+
+        total_cost = 0
+        count_offers = 0
+        for child in children:
+            cost, offers = await self.update_cost_for_category(child['relative_id'], conn)
+            total_cost += cost
+            count_offers += offers
+        unit['price'] = total_cost // count_offers
+        query = products_table.update().values(unit).where(
+            products_table.c.id == unit_id
+        )
+        await conn.execute(query)
+
+        return total_cost, count_offers
+
+    @staticmethod
+    async def get_roots_categories(conn, set_of_categories: set, date):
         result = set()
-        seen_categorys = set()
-        for _cat in set_of_categorys:
-            seen_categorys.add(_cat)
+        seen_categories = set()
+        for _cat in set_of_categories:
+            seen_categories.add(_cat)
             _cur = _cat
             _next = await conn.fetchrow(relations_table.select().where(relations_table.c.relative_id == _cur))
             if not _next:
                 result.add(_cur)
-            else:
-                _next = _next['unit_id']
             while _next:
-                if _next in seen_categorys:
+                _next = _next['unit_id']
+                if _next in seen_categories:
                     break
-                seen_categorys.add(_next)
+                seen_categories.add(_next)
                 _cur = _next
                 _next = await conn.fetchrow(relations_table.select().where(relations_table.c.relative_id == _cur))
-                _next = _next['unit_id']
             else:
                 result.add(_cur)
+        for category_id in seen_categories:
+            unit = await conn.fetchrow(products_table.select().where(products_table.c.id == category_id))
+            if not unit:
+                continue
+            unit = dict(unit)
+            unit['date'] = date
+            query = products_table.update().values(unit).where(
+                products_table.c.id == category_id
+            )
+            await conn.execute(query)
         return result
 
     @docs(summary='Добавить продукты и категории',
@@ -104,22 +138,25 @@ class ImportsView(BaseView):
             products = self.request['data']['items']
             date = self.request['data']['updateDate']
             products_to_ins = []
-            categorys_to_update = set()
+            categories_to_update = set()
             for prod in products:
                 if await conn.fetchrow(products_table.select().where(products_table.c.id == prod['id'])):
-                    await self.update_product(conn, prod['id'], prod)
-                    cat = await conn.fetchrow(
+                    parent_before = await conn.fetchrow(
                         relations_table.select().where(relations_table.c.relative_id == prod['id']))
-                    if cat:
-                        categorys_to_update.add(cat['unit_id'])
+                    await self.update_product(conn, prod['id'], prod)
+                    parent_after = await conn.fetchrow(
+                        relations_table.select().where(relations_table.c.relative_id == prod['id']))
+                    if parent_before and parent_after and parent_before['unit_id'] == parent_after['unit_id']:
+                        categories_to_update.add(parent_before['unit_id'])
+                    else:
+                        if parent_after:
+                            categories_to_update.add(parent_after['unit_id'])
+                        if parent_before:
+                            categories_to_update.add(parent_before['unit_id'])
                 else:
                     products_to_ins.append(prod)
-            if len(categorys_to_update) != 0:
-                categorys_to_update = await self.get_roots_categorys(conn, categorys_to_update)
-                for cat_id in categorys_to_update:
-                    await self.update_cost_for_category(cat_id, conn, date)
-
-
+                    if prod['parentId']:
+                        categories_to_update.add(prod['parentId'])
             product_rows = self.make_products_table_rows(products_to_ins, date)
             relation_rows = self.make_relations_table_rows(products_to_ins)
             chunked_product_rows = chunk_list(product_rows,
@@ -133,4 +170,9 @@ class ImportsView(BaseView):
             query = relations_table.insert()
             for chunk in chunked_relation_rows:
                 await conn.execute(query.values(list(chunk)))
+
+            if len(categories_to_update) != 0:
+                categories_to_update = await self.get_roots_categories(conn, categories_to_update, date)
+                for cat_id in categories_to_update:
+                    await self.update_cost_for_category(cat_id, conn)
         return Response(status=200)

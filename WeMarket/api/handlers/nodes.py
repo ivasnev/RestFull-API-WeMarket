@@ -1,6 +1,9 @@
+import pprint
 from typing import Generator
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime
+
+from asyncpg.pgproto.pgproto import UUID
 
 
 from aiohttp.web_response import Response
@@ -39,6 +42,8 @@ class NodesView(BaseView):
         """JSON serializer for objects not serializable by default json code"""
         if isinstance(obj, (datetime, date)):
             return obj.isoformat(timespec='milliseconds')[:-6]+"Z"
+        if isinstance(obj, UUID):
+            return str(obj)
         raise TypeError("Type %s not serializable" % type(obj))
 
     @docs(summary='Получить информацию о продукте или категории',
@@ -59,6 +64,6 @@ class NodesView(BaseView):
             if len(unit['children']) == 0:
                 if unit['type'] == 'CATEGORY':
                     unit['children'] = None
-            print(unit)
+            pprint.pprint(unit, indent=2)
             unit = json.dumps(unit, default=self.json_serial)
         return Response(status=200, body=unit)
