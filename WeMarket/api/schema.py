@@ -35,6 +35,10 @@ class SalesSchema(Schema):
     date = DateTime(required=True, timezone=True)
 
 
+class IdSchema(Schema):
+    id = UUID(required=True)
+
+
 class ErrorSchema(Schema):
     code = Str(required=True)
     message = Int(required=True)
