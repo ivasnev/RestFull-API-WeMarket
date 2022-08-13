@@ -11,7 +11,6 @@ from aiohttp_apispec import docs
 
 from WeMarket.api.schema import ErrorSchema
 from WeMarket.db.schema import products_table, relations_table
-from sqlalchemy import and_
 import json
 
 from .base import BaseView

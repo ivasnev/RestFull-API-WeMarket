@@ -33,7 +33,7 @@ def convert_asyncpg_record(value: Record):
 
 @convert.register(datetime)
 def convert_datetime(value: datetime):
-    return value.strftime(DATE_FORMAT)
+    return value.isoformat() + "Z"
 
 
 @convert.register(Decimal)

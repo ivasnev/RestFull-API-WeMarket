@@ -31,6 +31,10 @@ class ImportSchema(Schema):
     updateDate = DateTime(required=True, timezone=True)
 
 
+class SalesSchema(Schema):
+    date = DateTime(required=True, timezone=True)
+
+
 class ErrorSchema(Schema):
     code = Str(required=True)
     message = Int(required=True)
